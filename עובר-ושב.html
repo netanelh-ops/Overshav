@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>עובר ושב</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0f1117;
+    color: #e8e8e8;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    direction: rtl;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  #header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: #1a1d27;
+    border-bottom: 1px solid #2a2d3e;
+    flex-shrink: 0;
+  }
+  #header-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .logo {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, #4f8ef7, #7c5fff);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  #header-right { display: flex; align-items: center; gap: 10px; }
+  #loaded-time { font-size: 11px; color: #6b7280; }
+  #load-btn {
+    background: linear-gradient(135deg, #4f8ef7, #7c5fff);
+    color: #fff; border: none; border-radius: 8px;
+    padding: 8px 16px; font-size: 14px; font-weight: 600;
+    cursor: pointer;
+  }
+  #load-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  #error-bar {
+    display: none;
+    background: #3b1a1a; color: #f87171;
+    padding: 10px 16px; font-size: 13px;
+    border-bottom: 1px solid #5c2626;
+  }
+  #chat {
+    flex: 1; overflow-y: auto;
+    padding: 16px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  #empty-state {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 12px; padding-top: 80px; color: #6b7280;
+    text-align: center;
+  }
+  #empty-state .icon { font-size: 48px; }
+  #empty-state .title { font-size: 16px; font-weight: 600; color: #9ca3af; }
+  #empty-state .sub { font-size: 13px; }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 3px solid #2a2d3e;
+    border-top: 3px solid #4f8ef7;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto;
+  }
+  .bubble {
+    max-width: 85%; padding: 10px 14px;
+    border-radius: 14px; font-size: 14px;
+    line-height: 1.6; white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .bubble-user {
+    align-self: flex-start;
+    background: linear-gradient(135deg, #4f8ef7, #7c5fff);
+    color: #fff; border-bottom-left-radius: 4px;
+  }
+  .bubble-assistant {
+    align-self: flex-end;
+    background: #1e2130; color: #e8e8e8;
+    border: 1px solid #2a2d3e;
+    border-bottom-right-radius: 4px;
+  }
+  .dots { display: flex; gap: 6px; padding: 4px 0; justify-content: center; }
+  .dot {
+    width: 8px; height: 8px; background: #6b7280;
+    border-radius: 50%; animation: pulse 1.2s ease-in-out infinite;
+  }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+  #input-area {
+    display: flex; align-items: flex-end; gap: 10px;
+    padding: 12px 16px;
+    background: #1a1d27;
+    border-top: 1px solid #2a2d3e;
+    flex-shrink: 0;
+  }
+  #msg-input {
+    flex: 1; background: #0f1117;
+    border: 1px solid #2a2d3e; border-radius: 12px;
+    color: #e8e8e8; font-size: 14px;
+    padding: 10px 14px; resize: none; outline: none;
+    font-family: inherit; direction: rtl; line-height: 1.5;
+  }
+  #msg-input::placeholder { color: #4b5563; }
+  #send-btn {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, #4f8ef7, #7c5fff);
+    border: none; border-radius: 10px;
+    color: #fff; font-size: 18px; cursor: pointer;
+    flex-shrink: 0;
+  }
+  #send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%,100%{opacity:.3} 50%{opacity:1} }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div id="header-title">
+    <div class="logo">₪</div>
+    <span>עובר ושב</span>
+  </div>
+  <div id="header-right">
+    <span id="loaded-time"></span>
+    <button id="load-btn" onclick="loadFile()">טען קובץ</button>
+  </div>
+</div>
+
+<div id="error-bar"></div>
+
+<div id="chat">
+  <div id="empty-state">
+    <div class="icon">📊</div>
+    <div class="title">לחץ "טען קובץ" להתחיל</div>
+    <div class="sub">הקובץ יישלף מ-Google Drive שלך</div>
+  </div>
+</div>
+
+<div id="input-area">
+  <button id="send-btn" onclick="sendMessage()" disabled>⬆</button>
+  <textarea id="msg-input" rows="2"
+    placeholder="טען קובץ תחילה"
+    disabled
+    onkeydown="handleKey(event)"></textarea>
+</div>
+
+<script>
+const FILE_ID = "199BWBq2WFS7aiahcZq1OjSxlm9Pvghwe";
+const SYSTEM_PROMPT = `אתה עוזר פיננסי אישי שמנתח את הקובץ "עובר ושב" של נתנאל — רשומות הכנסות והוצאות חודשיות מפורטות לאורך שנים רבות.
+
+הנחיות:
+- ענה תמיד בעברית
+- היה ספציפי עם מספרים ותאריכים
+- כשמשווים תקופות — ציין את ההפרש בשקלים ובאחוזים
+- אם השאלה עמומה — שאל לפני שמנתח
+- אם הנתונים לא מכסים את התקופה המבוקשת — אמור זאת בבירור`;
+
+let fileContent = null;
+let messages = [];
+let thinking = false;
+
+function showError(msg) {
+  const bar = document.getElementById('error-bar');
+  bar.textContent = msg;
+  bar.style.display = msg ? 'block' : 'none';
+}
+
+function addBubble(role, text) {
+  const chat = document.getElementById('chat');
+  const div = document.createElement('div');
+  div.className = 'bubble ' + (role === 'user' ? 'bubble-user' : 'bubble-assistant');
+  div.textContent = text;
+  chat.appendChild(div);
+  div.scrollIntoView({ behavior: 'smooth' });
+  return div;
+}
+
+function showThinking() {
+  const chat = document.getElementById('chat');
+  const div = document.createElement('div');
+  div.id = 'thinking-bubble';
+  div.className = 'bubble bubble-assistant';
+  div.innerHTML = '<div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
+  chat.appendChild(div);
+  div.scrollIntoView({ behavior: 'smooth' });
+}
+
+function hideThinking() {
+  const el = document.getElementById('thinking-bubble');
+  if (el) el.remove();
+}
+
+async function loadFile() {
+  const btn = document.getElementById('load-btn');
+  btn.disabled = true;
+  btn.textContent = 'טוען...';
+  showError('');
+
+  const chat = document.getElementById('chat');
+  const empty = document.getElementById('empty-state');
+  if (empty) {
+    empty.innerHTML = '<div class="spinner"></div><div class="sub" style="margin-top:12px">קורא את הקובץ מ-Google Drive...</div>';
+  }
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1000,
+        system: "קרא את הקובץ מ-Google Drive והחזר את תוכנו המלא כטקסט. אל תסכם — החזר את הנתונים הגולמיים.",
+        messages: [{
+          role: "user",
+          content: `קרא את הקובץ עובר ושב.xlsx מ-Google Drive (File ID: ${FILE_ID}) והחזר את תוכנו המלא.`
+        }],
+        mcp_servers: [{
+          type: "url",
+          url: "https://drivemcp.googleapis.com/mcp/v1",
+          name: "google-drive"
+        }]
+      })
+    });
+
+    const data = await res.json();
+    const text = (data.content || [])
+      .filter(b => b.type === "text")
+      .map(b => b.text)
+      .join("\n");
+
+    if (!text || text.length < 100) throw new Error("תוכן ריק — ייתכן שהגישה ל-Google Drive לא אושרה");
+
+    fileContent = text;
+
+    if (empty) empty.remove();
+    const sizeKB = Math.round(text.length / 1024);
+    addBubble('assistant', `✅ הקובץ נטען בהצלחה (${sizeKB} KB).\nמה תרצה לדעת?`);
+
+    const now = new Date();
+    document.getElementById('loaded-time').textContent =
+      'עודכן ' + now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+
+    document.getElementById('msg-input').disabled = false;
+    document.getElementById('msg-input').placeholder = 'שאל שאלה על ההוצאות וההכנסות...';
+    document.getElementById('send-btn').disabled = false;
+    btn.textContent = 'רענן';
+
+  } catch(e) {
+    if (empty) {
+      empty.innerHTML = '<div class="icon">📊</div><div class="title">לחץ "טען קובץ" להתחיל</div><div class="sub">הקובץ יישלף מ-Google Drive שלך</div>';
+    }
+    showError('שגיאה: ' + e.message);
+    btn.textContent = fileContent ? 'רענן' : 'טען קובץ';
+  }
+
+  btn.disabled = false;
+}
+
+async function sendMessage() {
+  const input = document.getElementById('msg-input');
+  const userMsg = input.value.trim();
+  if (!userMsg || !fileContent || thinking) return;
+
+  input.value = '';
+  thinking = true;
+  document.getElementById('send-btn').disabled = true;
+
+  messages.push({ role: 'user', text: userMsg });
+  addBubble('user', userMsg);
+  showThinking();
+
+  try {
+    const history = messages.slice(0, -1).map(m => ({
+      role: m.role === 'assistant' ? 'assistant' : 'user',
+      content: m.text
+    }));
+
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1000,
+        system: SYSTEM_PROMPT + "\n\n--- תוכן הקובץ ---\n" + fileContent.slice(0, 80000),
+        messages: [
+          ...history,
+          { role: 'user', content: userMsg }
+        ]
+      })
+    });
+
+    const data = await res.json();
+    const reply = (data.content || [])
+      .filter(b => b.type === "text")
+      .map(b => b.text)
+      .join("\n");
+
+    hideThinking();
+    messages.push({ role: 'assistant', text: reply });
+    addBubble('assistant', reply);
+
+  } catch(e) {
+    hideThinking();
+    addBubble('assistant', '❌ שגיאה: ' + e.message);
+  }
+
+  thinking = false;
+  document.getElementById('send-btn').disabled = false;
+  input.focus();
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+</script>
+</body>
+</html>
