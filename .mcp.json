@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "whatsapp": {
+      "command": "node",
+      "args": ["whatsapp-connector/src/index.js"]
+    }
+  }
+}
