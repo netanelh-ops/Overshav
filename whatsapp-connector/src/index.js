@@ -48,6 +48,26 @@ server.registerTool(
 );
 
 server.registerTool(
+  "request_pairing_code",
+  {
+    title: "קבלת קוד צימוד (במקום QR)",
+    description:
+      "מבקש קוד התחברות בן 8 תווים במקום קוד QR — שימושי כאשר יש רק מכשיר אחד (למשל הקונקטור רץ על אותו טלפון שוואטסאפ מותקן בו, ואי אפשר לסרוק QR שמוצג על אותו מסך עם המצלמה של אותו מכשיר). בטלפון: מכשירים מקושרים > קישור מכשיר > 'קישור עם מספר טלפון במקום'. זמין רק לפני שיש חיבור רשום.",
+    inputSchema: {
+      phoneNumber: z.string().describe("מספר הטלפון המחובר לוואטסאפ, עם קידומת מדינה, למשל 972501234567"),
+    },
+  },
+  async ({ phoneNumber }) => {
+    try {
+      const code = await whatsapp.requestPairingCode(phoneNumber);
+      return ok({ code, instructions: "בוואטסאפ: מכשירים מקושרים > קישור מכשיר > קישור עם מספר טלפון במקום. הזינו את הקוד הזה." });
+    } catch (err) {
+      return fail(err);
+    }
+  },
+);
+
+server.registerTool(
   "get_login_qr",
   {
     title: "קבלת קוד QR להתחברות",

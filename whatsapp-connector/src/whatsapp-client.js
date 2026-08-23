@@ -48,6 +48,7 @@ export class WhatsAppClient extends EventEmitter {
     this.sock = null;
     this.status = "starting"; // starting | qr | connected | disconnected | logged_out
     this.qrDataUrl = null;
+    this.pairingCode = null;
     this._starting = false;
   }
 
@@ -109,6 +110,7 @@ export class WhatsAppClient extends EventEmitter {
     if (connection === "open") {
       this.status = "connected";
       this.qrDataUrl = null;
+      this.pairingCode = null;
       this.emit("connected");
       console.error("[whatsapp] מחובר בהצלחה");
     }
@@ -167,6 +169,27 @@ export class WhatsAppClient extends EventEmitter {
 
   getQr() {
     return this.qrDataUrl;
+  }
+
+  /**
+   * Alternative to scanning a QR code — useful when the only device you
+   * have is the phone WhatsApp itself is on (a QR shown on that same
+   * screen can't be scanned by that same screen's camera). Returns an
+   * 8-character code to type into WhatsApp: Linked devices > Link a
+   * device > "Link with phone number instead".
+   */
+  async requestPairingCode(phoneNumber) {
+    if (!this.sock) throw new Error("החיבור עוד לא אותחל — יש להמתין רגע ולנסות שוב");
+    if (this.sock.authState?.creds?.registered) {
+      throw new Error("כבר מחובר/רשום לוואטסאפ — אין צורך בקוד צימוד");
+    }
+    const digits = phoneNumber.replace(/[^\d]/g, "");
+    if (!digits) throw new Error(`מספר לא תקין: ${phoneNumber}`);
+    const code = await this.sock.requestPairingCode(digits);
+    this.pairingCode = code;
+    this.emit("pairingCode", code);
+    console.error(`[whatsapp] קוד צימוד: ${code} — הזינו אותו בוואטסאפ: מכשירים מקושרים > קישור מכשיר > קישור עם מספר טלפון`);
+    return code;
   }
 
   _ensureConnected() {
