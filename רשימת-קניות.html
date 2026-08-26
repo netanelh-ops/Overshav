@@ -226,6 +226,56 @@
     justify-content: space-between;
   }
   #footer b { color: #fff; }
+
+  .badge-sent { background: #1c2f3d; color: #7dd3fc; }
+
+  #order-bar {
+    display: none;
+    padding: 10px 16px;
+    background: #14161f;
+    border-bottom: 1px solid #2a2d3e;
+  }
+  #order-bar button {
+    width: 100%;
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: #fff; border: none; border-radius: 10px;
+    padding: 10px 14px; font-size: 14px; font-weight: 700;
+    cursor: pointer;
+  }
+  #order-bar .hint { font-size: 11px; color: #6b7280; margin-top: 6px; text-align: center; }
+
+  #wizard-overlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 60;
+    background: rgba(0,0,0,0.65);
+    align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  #wizard-modal {
+    background: #1a1d27; border: 1px solid #2a2d3e;
+    border-radius: 14px; padding: 20px;
+    max-width: 420px; width: 100%;
+  }
+  #wizard-progress { font-size: 12px; color: #6b7280; margin-bottom: 10px; }
+  #wizard-name { font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+  #wizard-meta { font-size: 12px; color: #9ca3af; margin-bottom: 16px; }
+  #wizard-open-btn {
+    display: block; width: 100%; text-align: center; text-decoration: none;
+    background: linear-gradient(135deg, #4f8ef7, #7c5fff);
+    color: #fff; border-radius: 10px; padding: 12px; font-size: 14px; font-weight: 700;
+    margin-bottom: 10px; cursor: pointer;
+  }
+  #wizard-actions { display: flex; gap: 8px; }
+  #wizard-actions button {
+    flex: 1; border-radius: 8px; padding: 9px; font-size: 13px; cursor: pointer;
+  }
+  .wizard-done-btn { background: #16321f; color: #4ade80; border: 1px solid #1f4d2c; }
+  .wizard-skip-btn { background: #262a3a; color: #b8bcc8; border: 1px solid #343850; }
+  #wizard-close { text-align: center; font-size: 12px; color: #6b7280; margin-top: 14px; cursor: pointer; }
+  #wizard-note {
+    font-size: 11px; color: #6b7280; line-height: 1.6;
+    margin-top: 14px; padding-top: 12px; border-top: 1px dashed #2a2d3e;
+  }
 </style>
 </head>
 <body>
@@ -272,6 +322,11 @@
   </div>
 </div>
 
+<div id="order-bar">
+  <button onclick="openOrderWizard()">🛒 אשר ושלח לעדכון הזמנה בשופרסל</button>
+  <div class="hint">פותח את כל מוצר בטאב שופרסל, פריט אחר פריט, כדי שתאשר/י ותוסיף/י לעגלה בעצמך</div>
+</div>
+
 <div id="list">
   <div id="empty-state">
     <div class="icon">🛍️</div>
@@ -283,6 +338,23 @@
 <div id="footer" style="display:none">
   <span id="footer-count"></span>
   <span id="footer-total"></span>
+</div>
+
+<div id="wizard-overlay">
+  <div id="wizard-modal">
+    <div id="wizard-progress"></div>
+    <div id="wizard-name"></div>
+    <div id="wizard-meta"></div>
+    <a id="wizard-open-btn" href="#" target="_blank" rel="noopener">🔗 פתח בשופרסל אונליין</a>
+    <div id="wizard-actions">
+      <button class="wizard-skip-btn" onclick="wizardSkip()">דלג בלי לסמן</button>
+      <button class="wizard-done-btn" onclick="wizardMarkSentAndNext()">✓ הוספתי לעגלה — הבא</button>
+    </div>
+    <div id="wizard-note">
+      זה פותח חיפוש עבור המוצר באתר שופרסל אונליין בטאב חדש — את/ה עדיין צריך/ה למצוא ולהוסיף אותו לעגלה בעצמך שם, כי אין לאפליקציה גישה לחשבון שופרסל שלך.
+    </div>
+    <div id="wizard-close" onclick="closeOrderWizard()">סגור</div>
+  </div>
 </div>
 
 <script>
@@ -341,6 +413,7 @@ function loadItems() {
     const raw = localStorage.getItem(STORAGE_KEY);
     items = raw ? JSON.parse(raw) : [];
   } catch(e) { items = []; }
+  items.forEach(i => { if (typeof i.sentToOrder !== 'boolean') i.sentToOrder = false; });
 }
 
 function saveItems() {
@@ -422,6 +495,7 @@ function render() {
         <div class="sub">הוסף מוצר למעלה — הוא יסונכרן אוטומטית מול שופרסל אונליין</div>
       </div>`;
     footer.style.display = 'none';
+    document.getElementById('order-bar').style.display = 'none';
     return;
   }
 
@@ -444,6 +518,9 @@ function render() {
       badge = `<span class="badge badge-synced">✓ מסונכרן</span>`;
     } else {
       badge = `<span class="badge badge-unsynced">⚠ לא מסונכרן</span>`;
+    }
+    if (item.sentToOrder) {
+      badge += `<span class="badge badge-sent">🛒 נשלח להזמנה</span>`;
     }
 
     const metaBits = [];
@@ -468,6 +545,7 @@ function render() {
         </div>
         <div class="item-actions">
           ${!item.synced && item.status !== 'pending' ? `<button class="icon-btn resync-btn" title="נסה סנכרון שוב" onclick="resync('${item.id}')">🔄</button>` : ''}
+          <button class="icon-btn" title="${item.sentToOrder ? 'בטל סימון נשלח' : 'סמן כנשלח להזמנה'}" onclick="toggleSentToOrder('${item.id}')">🛒</button>
           <button class="icon-btn" title="מחק" onclick="removeItem('${item.id}')">🗑</button>
         </div>
       </div>
@@ -480,6 +558,16 @@ function render() {
   footer.style.display = 'flex';
   document.getElementById('footer-count').textContent = `${items.length} מוצרים (${boughtCount} נקנו)`;
   document.getElementById('footer-total').textContent = total > 0 ? `סה"כ משוער: ₪${total.toFixed(2)}` : '';
+
+  updateOrderBar();
+}
+
+function orderQueue() {
+  return items.filter(i => !i.bought && !i.sentToOrder);
+}
+
+function updateOrderBar() {
+  document.getElementById('order-bar').style.display = orderQueue().length > 0 ? 'block' : 'none';
 }
 
 function renderSuggestions(item) {
@@ -533,7 +621,8 @@ async function addProduct() {
     url: null,
     suggestions: null,
     qty: 1,
-    bought: false
+    bought: false,
+    sentToOrder: false
   };
   items.unshift(item);
   render();
@@ -611,6 +700,14 @@ function resync(id) {
   syncItem(id);
 }
 
+function toggleSentToOrder(id) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  item.sentToOrder = !item.sentToOrder;
+  render();
+  saveItems();
+}
+
 function toggleBought(id) {
   const item = items.find(i => i.id === id);
   if (!item) return;
@@ -651,6 +748,54 @@ function handleKey(e) {
     e.preventDefault();
     addProduct();
   }
+}
+
+function shufersalSearchUrl(name) {
+  return 'https://www.shufersal.co.il/online/he/search?text=' + encodeURIComponent(name);
+}
+
+let wizardQueue = [];
+let wizardIndex = 0;
+
+function openOrderWizard() {
+  wizardQueue = orderQueue();
+  if (wizardQueue.length === 0) return;
+  wizardIndex = 0;
+  document.getElementById('wizard-overlay').style.display = 'flex';
+  renderWizard();
+}
+
+function closeOrderWizard() {
+  document.getElementById('wizard-overlay').style.display = 'none';
+  render();
+  saveItems();
+}
+
+function renderWizard() {
+  if (wizardIndex >= wizardQueue.length) {
+    closeOrderWizard();
+    return;
+  }
+  const item = wizardQueue[wizardIndex];
+  const name = item.name || item.query;
+  document.getElementById('wizard-progress').textContent =
+    `פריט ${wizardIndex + 1} מתוך ${wizardQueue.length}`;
+  document.getElementById('wizard-name').textContent = name;
+  const metaBits = [item.brand, item.size, item.qty > 1 ? `כמות: ${item.qty}` : null].filter(Boolean);
+  document.getElementById('wizard-meta').textContent = metaBits.join(' · ');
+  document.getElementById('wizard-open-btn').href = item.url || shufersalSearchUrl(name);
+}
+
+function wizardMarkSentAndNext() {
+  const item = wizardQueue[wizardIndex];
+  if (item) item.sentToOrder = true;
+  wizardIndex++;
+  renderWizard();
+}
+
+function wizardSkip() {
+  wizardIndex++;
+  renderWizard();
 }
 
 loadApiKey();
