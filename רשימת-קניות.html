@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>רשימת קניות</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0f1117;
+    color: #e8e8e8;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    direction: rtl;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  #header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: #1a1d27;
+    border-bottom: 1px solid #2a2d3e;
+    flex-shrink: 0;
+  }
+  #header-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .logo {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, #4f8ef7, #7c5fff);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  #header-right { display: flex; align-items: center; gap: 10px; }
+  #clear-bought-btn, #clear-all-btn {
+    background: #262a3a; color: #b8bcc8; border: 1px solid #343850;
+    border-radius: 8px; padding: 6px 10px; font-size: 12px; cursor: pointer;
+  }
+  #clear-all-btn { color: #f87171; }
+  #error-bar {
+    display: none;
+    background: #3b1a1a; color: #f87171;
+    padding: 10px 16px; font-size: 13px;
+    border-bottom: 1px solid #5c2626;
+  }
+  #add-area {
+    display: flex; gap: 10px;
+    padding: 14px 16px;
+    background: #14161f;
+    border-bottom: 1px solid #2a2d3e;
+    flex-shrink: 0;
+  }
+  #product-input {
+    flex: 1; background: #1a1d27;
+    border: 1px solid #2a2d3e; border-radius: 10px;
+    color: #e8e8e8; font-size: 14px;
+    padding: 10px 14px; outline: none;
+    font-family: inherit; direction: rtl;
+  }
+  #product-input::placeholder { color: #4b5563; }
+  #add-btn {
+    background: linear-gradient(135deg, #4f8ef7, #7c5fff);
+    color: #fff; border: none; border-radius: 10px;
+    padding: 0 18px; font-size: 20px; font-weight: 600;
+    cursor: pointer; flex-shrink: 0;
+  }
+  #add-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  #list {
+    flex: 1; overflow-y: auto;
+    padding: 12px 16px 24px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  #empty-state {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 10px; padding-top: 60px; color: #6b7280;
+    text-align: center;
+  }
+  #empty-state .icon { font-size: 44px; }
+  #empty-state .title { font-size: 15px; font-weight: 600; color: #9ca3af; }
+  #empty-state .sub { font-size: 12px; }
+
+  .item {
+    background: #1a1d27;
+    border: 1px solid #2a2d3e;
+    border-radius: 12px;
+    padding: 10px 12px;
+  }
+  .item.bought { opacity: 0.45; }
+  .item-row { display: flex; align-items: center; gap: 10px; }
+  .item-check {
+    width: 22px; height: 22px; flex-shrink: 0;
+    border-radius: 50%; border: 2px solid #4f8ef7;
+    background: transparent; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 13px;
+  }
+  .item-check.checked { background: #4f8ef7; }
+  .item-main { flex: 1; min-width: 0; }
+  .item-name { font-size: 14px; font-weight: 600; color: #fff; word-break: break-word; }
+  .item.bought .item-name { text-decoration: line-through; }
+  .item-meta {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    font-size: 11px; color: #8b92a6; margin-top: 3px;
+  }
+  .badge {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 1px 6px; border-radius: 6px; font-size: 10px; font-weight: 600;
+  }
+  .badge-synced { background: #16321f; color: #4ade80; }
+  .badge-unsynced { background: #3a2d14; color: #fbbf24; }
+  .badge-pending { background: #1c2333; color: #93c5fd; }
+  .item-price { font-size: 12px; color: #9ca3af; white-space: nowrap; }
+  .qty-box { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .qty-btn {
+    width: 22px; height: 22px; border-radius: 6px;
+    background: #262a3a; border: 1px solid #343850; color: #e8e8e8;
+    font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .qty-val { font-size: 13px; min-width: 16px; text-align: center; }
+  .item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .icon-btn {
+    background: transparent; border: none; color: #6b7280;
+    font-size: 15px; cursor: pointer; padding: 2px 4px;
+  }
+  .icon-btn:hover { color: #f87171; }
+  .resync-btn { color: #4f8ef7; }
+
+  .suggestions {
+    margin-top: 10px; padding-top: 10px;
+    border-top: 1px dashed #2a2d3e;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .suggestions-title { font-size: 12px; color: #93c5fd; margin-bottom: 2px; }
+  .suggestion-option {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px; background: #14161f; border: 1px solid #2a2d3e;
+    border-radius: 8px; padding: 8px 10px; cursor: pointer; text-align: right;
+  }
+  .suggestion-option:hover { border-color: #4f8ef7; }
+  .suggestion-info { display: flex; flex-direction: column; gap: 2px; }
+  .suggestion-name { font-size: 13px; font-weight: 600; color: #fff; }
+  .suggestion-sub { font-size: 11px; color: #8b92a6; }
+  .suggestion-price { font-size: 12px; color: #4ade80; white-space: nowrap; }
+  .suggestion-keep {
+    text-align: center; font-size: 12px; color: #8b92a6;
+    padding: 6px; cursor: pointer; border-radius: 8px;
+  }
+  .suggestion-keep:hover { background: #1e2130; color: #e8e8e8; }
+
+  .spinner-sm {
+    width: 14px; height: 14px;
+    border: 2px solid #2a2d3e;
+    border-top: 2px solid #4f8ef7;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #footer {
+    padding: 10px 16px 14px;
+    background: #1a1d27;
+    border-top: 1px solid #2a2d3e;
+    flex-shrink: 0;
+    font-size: 13px;
+    color: #9ca3af;
+    display: flex;
+    justify-content: space-between;
+  }
+  #footer b { color: #fff; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div id="header-title">
+    <div class="logo">🛒</div>
+    <span>רשימת קניות</span>
+  </div>
+  <div id="header-right">
+    <button id="clear-bought-btn" onclick="clearBought()">נקה שנקנו</button>
+    <button id="clear-all-btn" onclick="clearAll()">נקה הכל</button>
+  </div>
+</div>
+
+<div id="error-bar"></div>
+
+<div id="add-area">
+  <input id="product-input" type="text" placeholder="הקלד מוצר, למשל: חלב 3%..." onkeydown="handleKey(event)">
+  <button id="add-btn" onclick="addProduct()">+</button>
+</div>
+
+<div id="list">
+  <div id="empty-state">
+    <div class="icon">🛍️</div>
+    <div class="title">הרשימה ריקה</div>
+    <div class="sub">הוסף מוצר למעלה — הוא יסונכרן אוטומטית מול שופרסל אונליין</div>
+  </div>
+</div>
+
+<div id="footer" style="display:none">
+  <span id="footer-count"></span>
+  <span id="footer-total"></span>
+</div>
+
+<script>
+const MODEL = "claude-sonnet-5";
+const STORAGE_KEY = "shopping-list-items-v1";
+
+const SYSTEM_PROMPT = `את/ה עוזר שתפקידו לזהות את השם המדויק של מוצרים כפי שהם מופיעים באתר שופרסל אונליין (shufersal.co.il).
+
+כשמקבלים תיאור חופשי של מוצר מהמשתמש, המשימה שלך:
+1. לחפש באינטרנט (כולל חיפוש ישיר באתר shufersal.co.il וב-Google) את המוצר או המוצרים המתאימים ביותר בשופרסל אונליין.
+2. אם נמצאה התאמה אחת ברורה וחד-משמעית (למשל שם מוצר גנרי מאוד, או שהמשתמש ציין מותג וגודל מדויקים) — החזר אותה כתוצאה יחידה (status: "single").
+3. אם המוצר עלול להתאים למספר מוצרים שונים (מותגים שונים, גדלים/משקלים שונים, סוגים שונים כמו רגיל/דיאט/אורגני) — החזר בין 2 ל-5 הצעות מדורגות מהרלוונטית ביותר (status: "multiple").
+4. אם לא נמצאה שום התאמה סבירה — החזר status: "not_found" עם matches ריק.
+
+חשוב מאוד:
+- שם המוצר בשדה "name" חייב להיות השם המדויק כפי שהוא מופיע באתר שופרסל אונליין (כולל מותג, גודל/משקל אם רלוונטי), לא ניסוח חופשי.
+- אם לא ידוע לך מחיר מדויק ועדכני — שים null בשדה price, אל תמציא מספר.
+- החזר תמיד ורק בלוק JSON יחיד, בלי שום טקסט נוסף לפניו או אחריו, בפורמט המדויק הבא:
+{"status":"single|multiple|not_found","matches":[{"name":"...","brand":"...","size":"...","price":"12.90 או null","url":"קישור למוצר או null"}]}`;
+
+let items = [];
+
+function loadItems() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    items = raw ? JSON.parse(raw) : [];
+  } catch(e) { items = []; }
+}
+
+function saveItems() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); } catch(e) {}
+}
+
+function showError(msg) {
+  const bar = document.getElementById('error-bar');
+  bar.textContent = msg;
+  bar.style.display = msg ? 'block' : 'none';
+}
+
+function uid() {
+  return 'i' + Date.now() + Math.random().toString(36).slice(2, 8);
+}
+
+function extractJson(text) {
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start === -1 || end === -1 || end <= start) throw new Error('לא נמצא JSON בתשובה');
+  return JSON.parse(text.slice(start, end + 1));
+}
+
+async function matchProduct(query) {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: 1500,
+      system: SYSTEM_PROMPT,
+      messages: [{
+        role: "user",
+        content: `מצא את המוצר המדויק הבא בשופרסל אונליין: "${query}"`
+      }],
+      tools: [{
+        type: "web_search_20250305",
+        name: "web_search",
+        max_uses: 5
+      }]
+    })
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error(`שגיאת שרת (${res.status}): ${errText.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  const text = (data.content || [])
+    .filter(b => b.type === "text")
+    .map(b => b.text)
+    .join("\n");
+
+  if (!text) throw new Error('לא התקבלה תשובה');
+  return extractJson(text);
+}
+
+function render() {
+  const list = document.getElementById('list');
+  const footer = document.getElementById('footer');
+  list.innerHTML = '';
+
+  if (items.length === 0) {
+    list.innerHTML = `
+      <div id="empty-state">
+        <div class="icon">🛍️</div>
+        <div class="title">הרשימה ריקה</div>
+        <div class="sub">הוסף מוצר למעלה — הוא יסונכרן אוטומטית מול שופרסל אונליין</div>
+      </div>`;
+    footer.style.display = 'none';
+    return;
+  }
+
+  let total = 0;
+  let boughtCount = 0;
+
+  items.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'item' + (item.bought ? ' bought' : '');
+
+    const displayName = item.name || item.query;
+    const priceNum = item.price ? parseFloat(item.price) : null;
+    if (priceNum && item.bought === false) total += priceNum * (item.qty || 1);
+    if (item.bought) boughtCount++;
+
+    let badge = '';
+    if (item.status === 'pending') {
+      badge = `<span class="badge badge-pending"><span class="spinner-sm"></span> מסנכרן...</span>`;
+    } else if (item.synced) {
+      badge = `<span class="badge badge-synced">✓ מסונכרן</span>`;
+    } else {
+      badge = `<span class="badge badge-unsynced">⚠ לא מסונכרן</span>`;
+    }
+
+    const metaBits = [];
+    if (item.brand) metaBits.push(item.brand);
+    if (item.size) metaBits.push(item.size);
+
+    div.innerHTML = `
+      <div class="item-row">
+        <button class="item-check ${item.bought ? 'checked' : ''}" onclick="toggleBought('${item.id}')">${item.bought ? '✓' : ''}</button>
+        <div class="item-main">
+          <div class="item-name">${escapeHtml(displayName)}</div>
+          <div class="item-meta">
+            ${badge}
+            ${metaBits.length ? `<span>${escapeHtml(metaBits.join(' · '))}</span>` : ''}
+          </div>
+        </div>
+        <div class="item-price">${priceNum ? '₪' + priceNum.toFixed(2) : ''}</div>
+        <div class="qty-box">
+          <button class="qty-btn" onclick="changeQty('${item.id}', -1)">−</button>
+          <span class="qty-val">${item.qty || 1}</span>
+          <button class="qty-btn" onclick="changeQty('${item.id}', 1)">+</button>
+        </div>
+        <div class="item-actions">
+          ${!item.synced && item.status !== 'pending' ? `<button class="icon-btn resync-btn" title="נסה סנכרון שוב" onclick="resync('${item.id}')">🔄</button>` : ''}
+          <button class="icon-btn" title="מחק" onclick="removeItem('${item.id}')">🗑</button>
+        </div>
+      </div>
+      ${item.suggestions && item.suggestions.length ? renderSuggestions(item) : ''}
+    `;
+
+    list.appendChild(div);
+  });
+
+  footer.style.display = 'flex';
+  document.getElementById('footer-count').textContent = `${items.length} מוצרים (${boughtCount} נקנו)`;
+  document.getElementById('footer-total').textContent = total > 0 ? `סה"כ משוער: ₪${total.toFixed(2)}` : '';
+}
+
+function renderSuggestions(item) {
+  const options = item.suggestions.map((s, idx) => `
+    <div class="suggestion-option" onclick="chooseSuggestion('${item.id}', ${idx})">
+      <div class="suggestion-info">
+        <div class="suggestion-name">${escapeHtml(s.name)}</div>
+        <div class="suggestion-sub">${escapeHtml([s.brand, s.size].filter(Boolean).join(' · '))}</div>
+      </div>
+      <div class="suggestion-price">${s.price ? '₪' + parseFloat(s.price).toFixed(2) : ''}</div>
+    </div>
+  `).join('');
+
+  return `
+    <div class="suggestions">
+      <div class="suggestions-title">נמצאו כמה התאמות אפשריות — בחר את המוצר המדויק:</div>
+      ${options}
+      <div class="suggestion-keep" onclick="keepAsTyped('${item.id}')">אף אחד מאלה — השאר כפי שהקלדתי</div>
+    </div>
+  `;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str == null ? '' : String(str);
+  return div.innerHTML;
+}
+
+async function addProduct() {
+  const input = document.getElementById('product-input');
+  const query = input.value.trim();
+  if (!query) return;
+  input.value = '';
+  showError('');
+
+  const item = {
+    id: uid(),
+    query,
+    name: query,
+    synced: false,
+    status: 'pending',
+    brand: null,
+    size: null,
+    price: null,
+    url: null,
+    suggestions: null,
+    qty: 1,
+    bought: false
+  };
+  items.unshift(item);
+  render();
+  saveItems();
+
+  await syncItem(item.id);
+}
+
+async function syncItem(id) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  item.status = 'pending';
+  item.suggestions = null;
+  render();
+
+  try {
+    const result = await matchProduct(item.query);
+
+    if (result.status === 'single' && result.matches && result.matches[0]) {
+      applyMatch(item, result.matches[0]);
+    } else if (result.status === 'multiple' && result.matches && result.matches.length) {
+      item.status = 'awaiting-choice';
+      item.synced = false;
+      item.name = item.query;
+      item.suggestions = result.matches;
+    } else {
+      item.status = 'not_found';
+      item.synced = false;
+      item.name = item.query;
+      item.suggestions = null;
+    }
+  } catch (e) {
+    item.status = 'error';
+    item.synced = false;
+    item.name = item.query;
+    item.suggestions = null;
+    showError('שגיאה בסנכרון "' + item.query + '": ' + e.message);
+  }
+
+  render();
+  saveItems();
+}
+
+function applyMatch(item, match) {
+  item.name = match.name || item.query;
+  item.brand = match.brand || null;
+  item.size = match.size || null;
+  item.price = match.price || null;
+  item.url = match.url || null;
+  item.synced = true;
+  item.status = 'synced';
+  item.suggestions = null;
+}
+
+function chooseSuggestion(id, idx) {
+  const item = items.find(i => i.id === id);
+  if (!item || !item.suggestions || !item.suggestions[idx]) return;
+  applyMatch(item, item.suggestions[idx]);
+  render();
+  saveItems();
+}
+
+function keepAsTyped(id) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  item.name = item.query;
+  item.synced = false;
+  item.status = 'kept-as-typed';
+  item.suggestions = null;
+  render();
+  saveItems();
+}
+
+function resync(id) {
+  syncItem(id);
+}
+
+function toggleBought(id) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  item.bought = !item.bought;
+  render();
+  saveItems();
+}
+
+function changeQty(id, delta) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  item.qty = Math.max(1, (item.qty || 1) + delta);
+  render();
+  saveItems();
+}
+
+function removeItem(id) {
+  items = items.filter(i => i.id !== id);
+  render();
+  saveItems();
+}
+
+function clearBought() {
+  items = items.filter(i => !i.bought);
+  render();
+  saveItems();
+}
+
+function clearAll() {
+  if (!confirm('למחוק את כל הרשימה?')) return;
+  items = [];
+  render();
+  saveItems();
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    addProduct();
+  }
+}
+
+loadItems();
+render();
+</script>
+</body>
+</html>
