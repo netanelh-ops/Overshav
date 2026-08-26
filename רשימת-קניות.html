@@ -42,7 +42,7 @@
     font-size: 18px;
   }
   #header-right { display: flex; align-items: center; gap: 10px; }
-  #clear-bought-btn, #clear-all-btn, #settings-btn {
+  #clear-bought-btn, #clear-all-btn, #settings-btn, #copy-list-btn {
     background: #262a3a; color: #b8bcc8; border: 1px solid #343850;
     border-radius: 8px; padding: 6px 10px; font-size: 12px; cursor: pointer;
   }
@@ -326,6 +326,7 @@
     <span>רשימת קניות</span>
   </div>
   <div id="header-right">
+    <button id="copy-list-btn" onclick="copyFullList()" title="העתק את כל הרשימה כטקסט">📋 העתק</button>
     <button id="settings-btn" onclick="openSettings()" title="הגדרות">⚙</button>
     <button id="clear-bought-btn" onclick="clearBought()">נקה שנקנו</button>
     <button id="clear-all-btn" onclick="clearAll()">נקה הכל</button>
@@ -814,6 +815,43 @@ function clearAll() {
   items = [];
   render();
   saveItems();
+}
+
+function buildFullListText() {
+  if (!items.length) return '';
+  const lines = items.map(item => {
+    const name = item.name || item.query;
+    let line = (item.bought ? '✔ ' : '• ') + name;
+    if ((item.qty || 1) > 1) line += ` x${item.qty}`;
+    if (!item.synced && item.status !== 'pending') line += ' (לא מסונכרן)';
+    if (item.price) line += ` — ₪${parseFloat(item.price).toFixed(2)}`;
+    return line;
+  });
+  return 'רשימת קניות:\n' + lines.join('\n');
+}
+
+function copyFullList() {
+  const text = buildFullListText();
+  if (!text) { alert('הרשימה ריקה'); return; }
+
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch(e) {}
+  document.body.removeChild(ta);
+  if (!ok && navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).catch(() => {});
+  }
+
+  const btn = document.getElementById('copy-list-btn');
+  const original = btn.textContent;
+  btn.textContent = '✓ הועתק';
+  setTimeout(() => { btn.textContent = original; }, 1500);
 }
 
 function handleKey(e) {
