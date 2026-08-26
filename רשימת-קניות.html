@@ -42,11 +42,58 @@
     font-size: 18px;
   }
   #header-right { display: flex; align-items: center; gap: 10px; }
-  #clear-bought-btn, #clear-all-btn {
+  #clear-bought-btn, #clear-all-btn, #settings-btn {
     background: #262a3a; color: #b8bcc8; border: 1px solid #343850;
     border-radius: 8px; padding: 6px 10px; font-size: 12px; cursor: pointer;
   }
   #clear-all-btn { color: #f87171; }
+  #settings-btn { font-size: 15px; padding: 6px 9px; }
+
+  #api-key-banner {
+    display: none;
+    background: #1c2333; color: #93c5fd;
+    padding: 12px 16px; font-size: 13px;
+    border-bottom: 1px solid #2a2d3e;
+    line-height: 1.6;
+  }
+  #api-key-banner button {
+    background: linear-gradient(135deg, #4f8ef7, #7c5fff);
+    color: #fff; border: none; border-radius: 8px;
+    padding: 6px 14px; font-size: 12px; font-weight: 600;
+    cursor: pointer; margin-top: 8px;
+  }
+
+  #settings-overlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(0,0,0,0.6);
+    align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  #settings-modal {
+    background: #1a1d27; border: 1px solid #2a2d3e;
+    border-radius: 14px; padding: 20px;
+    max-width: 420px; width: 100%;
+  }
+  #settings-modal h3 { font-size: 16px; margin-bottom: 10px; color: #fff; }
+  #settings-modal p { font-size: 13px; color: #9ca3af; line-height: 1.6; margin-bottom: 12px; }
+  #settings-modal a { color: #4f8ef7; }
+  #settings-modal input {
+    width: 100%; background: #0f1117; border: 1px solid #2a2d3e;
+    border-radius: 8px; color: #e8e8e8; font-size: 13px;
+    padding: 10px 12px; outline: none; direction: ltr; text-align: left;
+    margin-bottom: 12px;
+  }
+  #settings-modal .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  #settings-modal .btn-primary {
+    background: linear-gradient(135deg, #4f8ef7, #7c5fff);
+    color: #fff; border: none; border-radius: 8px;
+    padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  #settings-modal .btn-secondary {
+    background: #262a3a; color: #b8bcc8; border: 1px solid #343850;
+    border-radius: 8px; padding: 8px 16px; font-size: 13px; cursor: pointer;
+  }
   #error-bar {
     display: none;
     background: #3b1a1a; color: #f87171;
@@ -189,9 +236,16 @@
     <span>רשימת קניות</span>
   </div>
   <div id="header-right">
+    <button id="settings-btn" onclick="openSettings()" title="הגדרות">⚙</button>
     <button id="clear-bought-btn" onclick="clearBought()">נקה שנקנו</button>
     <button id="clear-all-btn" onclick="clearAll()">נקה הכל</button>
   </div>
+</div>
+
+<div id="api-key-banner">
+  כדי להפעיל סנכרון מול שופרסל אונליין צריך מפתח API של Anthropic.
+  <br>
+  <button onclick="openSettings()">הגדר מפתח API</button>
 </div>
 
 <div id="error-bar"></div>
@@ -199,6 +253,23 @@
 <div id="add-area">
   <input id="product-input" type="text" placeholder="הקלד מוצר, למשל: חלב 3%..." onkeydown="handleKey(event)">
   <button id="add-btn" onclick="addProduct()">+</button>
+</div>
+
+<div id="settings-overlay">
+  <div id="settings-modal">
+    <h3>מפתח API של Anthropic</h3>
+    <p>
+      כדי לסנכרן מוצרים מול שופרסל אונליין, האפליקציה שולחת בקשות ל-Claude ישירות מהדפדפן שלך.
+      אפשר ליצור מפתח אישי בכתובת
+      <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.
+      המפתח נשמר רק במחשב שלך (localStorage) ולא נשלח לשום מקום חוץ מ-Anthropic.
+    </p>
+    <input id="api-key-input" type="password" placeholder="sk-ant-...">
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeSettings()">ביטול</button>
+      <button class="btn-primary" onclick="saveApiKey()">שמור</button>
+    </div>
+  </div>
 </div>
 
 <div id="list">
@@ -217,6 +288,37 @@
 <script>
 const MODEL = "claude-sonnet-5";
 const STORAGE_KEY = "shopping-list-items-v1";
+const API_KEY_STORAGE_KEY = "shopping-list-api-key-v1";
+
+let apiKey = null;
+
+function loadApiKey() {
+  try { apiKey = localStorage.getItem(API_KEY_STORAGE_KEY) || null; } catch(e) { apiKey = null; }
+}
+
+function updateApiKeyBanner() {
+  document.getElementById('api-key-banner').style.display = apiKey ? 'none' : 'block';
+}
+
+function openSettings() {
+  document.getElementById('api-key-input').value = apiKey || '';
+  document.getElementById('settings-overlay').style.display = 'flex';
+}
+
+function closeSettings() {
+  document.getElementById('settings-overlay').style.display = 'none';
+}
+
+function saveApiKey() {
+  const val = document.getElementById('api-key-input').value.trim();
+  apiKey = val || null;
+  try {
+    if (apiKey) localStorage.setItem(API_KEY_STORAGE_KEY, apiKey);
+    else localStorage.removeItem(API_KEY_STORAGE_KEY);
+  } catch(e) {}
+  updateApiKeyBanner();
+  closeSettings();
+}
 
 const SYSTEM_PROMPT = `את/ה עוזר שתפקידו לזהות את השם המדויק של מוצרים כפי שהם מופיעים באתר שופרסל אונליין (shufersal.co.il).
 
@@ -263,9 +365,16 @@ function extractJson(text) {
 }
 
 async function matchProduct(query) {
+  if (!apiKey) throw new Error('לא הוגדר מפתח API — לחץ על ⚙ למעלה כדי להגדיר אחד');
+
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true"
+    },
     body: JSON.stringify({
       model: MODEL,
       max_tokens: 1500,
@@ -284,6 +393,9 @@ async function matchProduct(query) {
 
   if (!res.ok) {
     const errText = await res.text().catch(() => '');
+    if (res.status === 401 || res.status === 403) {
+      throw new Error('מפתח ה-API לא תקין או נדחה — לחץ על ⚙ ובדוק אותו');
+    }
     throw new Error(`שגיאת שרת (${res.status}): ${errText.slice(0, 200)}`);
   }
 
@@ -400,6 +512,12 @@ async function addProduct() {
   const input = document.getElementById('product-input');
   const query = input.value.trim();
   if (!query) return;
+
+  if (!apiKey) {
+    openSettings();
+    return;
+  }
+
   input.value = '';
   showError('');
 
@@ -535,6 +653,8 @@ function handleKey(e) {
   }
 }
 
+loadApiKey();
+updateApiKeyBanner();
 loadItems();
 render();
 </script>
